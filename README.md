@@ -12,7 +12,10 @@ The game is the SAN Inc crack's code and data, untouched: only its disk code is 
 B=https://mirrors.apple2.org.za/ftp.apple.asimov.net/images/games/action/captain_goodnight
 curl -o assets/CAPTAIN_GOODNIGHT_A.dsk "$B/captain%20goodnight%20a%20%28san%20inc%20crack%29.dsk"   # not in the repo
 curl -o assets/CAPTAIN_GOODNIGHT_B.dsk "$B/captain%20goodnight%20b%20%28san%20inc%20crack%29.dsk"
-./build.sh                      # -> mem/ snapshots, out/ listings, notes/
+# optional, to compare: the ACE crack
+curl --create-dirs -o assets/ace/ACE_A.dsk "$B/Captain%20Goodnight%20%28Cracked%20by%20ACE%20with%20codes%29%20-%20Side%20A.DSK"
+curl --create-dirs -o assets/ace/ACE_B.dsk "$B/Captain%20Goodnight%20%28Cracked%20by%20ACE%20with%20codes%29%20-%20Side%20B.DSK"
+./build.sh                      # -> mem/ snapshots, out/ listings, notes/, bin/ (tools/extract.py)
 ```
 
 ## How the original boots (side A)
@@ -39,29 +42,49 @@ The load map is [meta/loadmap.txt](meta/loadmap.txt).
 
 ## How the game loads (LC bank 2)
 
-Every later disk access goes through LC bank 2, [meta/lc2.meta](meta/lc2.meta): a read-only RWTS (`$D00C` data
-field, `$D0E4` seek, `$D121` address field, `$D300` a track's sectors to a page list), `LOAD_TRACK` (`$D3A6`: track
-A+1 to pages Y.., with the game's zero page `$00-$1F` swapped with `$D400`) and `LOAD_SECTION` (`$D502`, called
-through `$D000`):
+The game runs with LC bank 1 switched in. Three trampolines switch bank 2 in for the disk layer
+([meta/lc2.meta](meta/lc2.meta)) and bank 1 back: `$1D17` (`LOAD_SECTION` A, then `JMP $6300`), `$1D2B` (`$D003`,
+then `RTS`) and `$1D3B` (`$D006`, then `JMP $6300`). The disk layer is a read-only RWTS (`$D00C` data field, `$D0E4`
+seek, `$D121` address field, `$D300` a track's sectors to a page list), `LOAD_TRACK` (`$D3A6`: track A+1 to pages
+Y.., with the game's zero page `$00-$1F` swapped with `$D400`) and `LOAD_SECTION` (`$D502`, through `$D000`):
 
-- A = section n: its tracks, `TRACK_LISTS` + 8n (`$DF0B`, track - 1, `$FF` ends) to `PAGE_LISTS` + 8n (`$DF6B`).
-  Then the `$6300` page loaded must hold `$6303` = `SECTION_MARK[n]` (`$D55E`) and `$6304` = `SECTION_SIDE[n]`
-  (`$D552`), else "PLEASE FLIP DISK AND PRESS A KEY." / "PLEASE INSERT DISK AND PSESS A KEY" (sic), and again.
-- A = `$FF`: `LOAD_TRACK` X to pages Y.., no check.
+- A = section n: its tracks, `TRACK_LISTS` + 8n (`$DF0B`, track - 1, `$FF` ends) to `PAGE_LISTS` + 8n (`$DF6B`),
+  from side `SECTION_SIDE[n]` (`$D552`). The `$6300` page loaded must then hold `$6303` = `SECTION_MARK[n]`
+  (`$D55E`) and `$6304` = the side, else "PLEASE FLIP DISK AND PRESS A KEY." / "PLEASE INSERT DISK AND PSESS A KEY"
+  (sic), and it loads again.
+- A = `$FF`: `LOAD_TRACK` X to pages Y.., from the side in the drive, no check.
 
-| Section | Side | Tracks           | Load                                         |
-| ------- | ---- | ---------------- | -------------------------------------------- |
-| 0       | A    | T0E-T10          | `$0800`, `$1800`, `$6000` (16 pages each)    |
-| 1-6     | B    | T01-T05, T06-T0B, T0C-T10, T11-T16, T17-T1C, T1D-T22 | `$6300-$A2FF` (+ `$B000-$BFFF`) |
-| 9       | A    | T1E, T1F, T10    | `$6300-$92FF`                                |
-| 11      | A    | T21, T22         | `$6300-$82FF`                                |
+[tools/extract.py](tools/extract.py) does all of these loads, with the game's checks, and writes the boot images and
+every track read to `bin/`. It also fails on any call into the loaders that it doesn't know about.
+
+| Load                    | Who                                                    | Side | Tracks                              | To                         |
+| ----------------------- | ------------------------------------------------------ | ---- | ----------------------------------- | -------------------------- |
+| intro                   | its script at `$631A` (opcode 0: X, Y), `$63F2`        | A    | T11-T1D                             | `$7000-$BFFF`, a track at a time |
+| section 1               | the intro, on a key (`$699D`)                          | B    | T01-T05                             | `$6300-$B2FF`              |
+| sections 2-6            | the previous section at its end; 2 also from game over (bank 2 `$DC90`) | B | T06-T0B, T0C-T10, T11-T16, T17-T1C, T1D-T22 | `$6300-$B2FF` + `$B000-$BFFF` |
+| section 9               | section 6's end (`$B8D1`, `$B8DA`)                     | A    | T1E, T1F, T10                       | `$6300-$92FF`              |
+| section 11              | section 6's end (`$B8EC`), section 9                   | A    | T21, T22                            | `$6300-$82FF`              |
+| `LOAD_TRACK`            | section 11 (`$7455`)                                   | A    | T20                                 | `$B000-$BFFF`              |
+| `LOAD_TRACK`            | the endings, `$D006` (bank 2 `$DA71`, `$DC75`), until `$B802` = `$9A`, then `JMP $B800` | B | T22 | `$B000-$BFFF` |
+
+Section 6's end picks the next section from the outcome in `$80` (and `$81`): 8, 9, 10 or 11.
+
+Leftovers: section 0 (T0E-T10 to `$0800`/`$1800`/`$6000`, the original's main code load: empty on this crack, which
+reads those pages from T05-T07 at boot, and nothing calls it); sections 7, 8 and 10 have no tracks; side A T08 S0 -
+T0B S7 is a copy of bank 2 `$D800-$DFFF`, `$0800-$27FF` and `$6000-$6FFF`, which nothing reads. The intro's tracks
+hold some junk that looks like code (side A T11 SE).
+
+The ACE crack (also on asimov) has the same section tables. It packs side A T00-T0F differently, and patches out
+section 11's `LOAD_TRACK T20`, whose sectors S0, S5, S6 and SF the SAN crack fills: probably the original's
+protection check at the end of the game.
 
 ## Open questions
 
-- Sections 0, 9 and 11 don't fit side A as it is: T0E-T0F are empty, and section 9 expects mark `$11` where T1E's
-  `$6300` page has `$23` (section 10's, whose list is empty). Leftovers the crack doesn't use, or loaded another way?
-- Who calls `LOAD_SECTION` with which n, and with `$FF`. The main code also calls `$D0D0`, `$D053`, `$D062`:
-  mid-instruction in bank 2, so bank 1 code (which bank is in at each call is to check).
-- `$D003` (`$D654`) and `$D006` (`$DA6D`): game code, not disk code, it seems.
-- Free memory for tiny-dos: the disk layer (`$D00C-$D3E3`) and its work areas (`$D400-$D4FF`) would be free once
-  it is replaced.
+- Sections 8 and 10 load nothing, so `LOAD_SECTION` checks the marks of the `$6300` page that is already there,
+  section 6's (side B): it would ask to flip the disk forever. When does section 6 end with `$80` = 1, or `$80` = 4
+  and `$81` = 0? To test on the rehosted build.
+- `$D003` (`$D654`) and `$D006` (`$DA6D`, A = 0): what they draw.
+- Free memory for tiny-dos in bank 2, once the disk layer is replaced: `$D00C-$D3D7` and `$D3E4-$D62B` (the work
+  areas `$D400-$D4FF` included), minus what `SWAP_ZP` keeps at `$D400-$D41F` if it stays. `DELAY` (`$D3D8`) and
+  `FILL_MSG_ROWS` (`$D62C`) are still called by the rest of bank 2. Which bank is in at each call from the main code
+  is to confirm in the emulator.

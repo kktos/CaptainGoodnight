@@ -3,6 +3,7 @@
 #   TSASM="node /path/to/tsAsm/dist/tsasm" ./build.sh   (default: tsasm in PATH)
 cd "$(dirname "$0")"
 python3 tools/mem.py meta/loadmap.txt
+python3 tools/extract.py > /dev/null || exit 1
 mkdir -p out notes
 for m in meta/*.meta; do
 	[ -e "$m" ] || continue
