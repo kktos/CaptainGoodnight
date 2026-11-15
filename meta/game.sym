@@ -1,0 +1,28 @@
+# The game's resident names, for the metas of what runs with it (sections, intro).
+# Names in lower case or as in the developers' leftover equates (side A T14 S8-SC) are theirs.
+
+# zero page (the game's own: the ROM's names don't apply)
+sym RND $29 ; RANDOM's state, seeded by section 1
+sym RND_STEP $2A ; RANDOM adds it, +1 a call
+sym RND_MAX $2B ; RANDOM returns RND_MIN <= A < RND_MAX
+sym RND_MIN $2C
+sym SLOT16 $45 ; the disk's slot*16, from DISK_SLOT16 (section 1's start)
+
+# main memory, resident (boot image T05-T07)
+sym yhigh $18EA
+sym ylow $19AA
+sym DOTEXT $1A6A
+sym JMPDISK $1D17 ; LOAD_SECTION A (LC bank 2), then JMP $6300
+sym JMPTIME $1D2B ; TIME (LC bank 2), then RTS
+sym JMPGOVER $1D3B ; GOVER (LC bank 2), then JMP $6300
+sym RANDOM $61BF
+sym WAIT $6225
+
+# LC bank 1, the game's resident bank (the CAPTAIN module)
+sym WAITING $D000
+sym DRAWGOOD $D023
+sym CERASE $D19C
+sym INITCAPT $D32E
+
+# LC bank 2: the disk layer (meta/lc2.meta)
+sym DISK_SLOT16 $D009 ; slot*16, from GAME_SLOT16 ($BFFF) at the first LOAD_SECTION

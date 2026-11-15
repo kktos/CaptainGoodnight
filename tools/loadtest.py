@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Load test of the rehosted build in vm6502: every load the game does, called directly, checksummed, compared
-with what tools/extract.py extracted. Nobody plays far enough to reach every section.
+with what tools/extract.py extracted (with tools/patches.py's patches). Nobody plays far enough to reach every section.
 
   tools/loadtest.py cases        -> out/loadtest/cases.bin (at $3C00) and expect.json; assemble the harness:
                                     (cd test && tsasm loadtest.yaml) -> out/loadtest/loadtest.bin (at $3F00)
@@ -18,13 +18,17 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from patches import patched  # noqa: E402
+
 here = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.join(here, "..", "bin")
 OUT = os.path.join(here, "..", "out", "loadtest")
 
 
 def track(side, t):
-    return open(os.path.join(BIN, f"{side}.T{t:02X}.bin"), "rb").read()
+    name = f"{side}.T{t:02X}.bin"
+    return patched(name, open(os.path.join(BIN, name), "rb").read())
 
 
 def cases():

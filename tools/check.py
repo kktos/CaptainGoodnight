@@ -6,8 +6,8 @@ Reads dist/captain.po as tiny-dos does (the volume directory, each file's index 
   GAME   = page3, game.0800-27FF, game.6000-6FFF
   LC     = lc1, lc2, lchi; lc2 may differ only in $D00C-$D3C5, the disk layer replaced
   tracks: every bin/{a,b}.Txx.bin, found as AuxLoadTrack finds it, from the TrackMap and FileRecords of the
-          AUX_LOADER the build put in CAPTAIN (addresses from dist/captain.sym), is the same 4K; and TrackMap
-          gives no other track
+          AUX_LOADER the build put in CAPTAIN (addresses from dist/captain.sym), is the same 4K, with the patches
+          of tools/patches.py; and TrackMap gives no other track
 
 usage: tools/check.py [volume.po] [symbols.sym] [bindir]
 """
@@ -15,6 +15,9 @@ usage: tools/check.py [volume.po] [symbols.sym] [bindir]
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from patches import patched  # noqa: E402
 
 BLOCK = 512
 
@@ -114,7 +117,7 @@ def main():
             rec = peek(records + 2 * (entry >> 4)) | peek(records + 2 * (entry >> 4) + 1) << 8
             name = bytes(peek(rec + 5 + i) for i in range(peek(rec + 4))).decode()
             index = entry & 0x0F
-            if same(f"side {side} T{t:02X} ({name} #{index})", data(name, index * 8, 8), binfile(path)):
+            if same(f"side {side} T{t:02X} ({name} #{index})", data(name, index * 8, 8), patched(path, binfile(path))):
                 seen.add(path)
 
     if errors:

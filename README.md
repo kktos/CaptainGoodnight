@@ -122,6 +122,12 @@ Each segment of a file starts on a block, so a track is 8 blocks at 8 x its inde
   [test/loadtest.asm](test/loadtest.asm) call every load in vm6502 (sections 1-6, 9, 11, the 13 intro tracks, T20,
   the game over's T22) and compare their checksums: all as extracted. It boots to the intro, and a key starts
   section 1.
+- Sections 1 and 11 are sources ([part1.asm](src/modules/tracks/part1.asm): side B T01;
+  [end11.asm](src/modules/tracks/end11.asm): side A T21-T22, the Hall of Fame), patched where they touched the
+  disk; [tools/patches.py](tools/patches.py) lists the patches, for `check.py` and the load test. Section 1's
+  start (`$630B-$6326`) is NOPs: it seeded `RND` (`$29`) from the Disk II data latch (`RND` keeps what the intro
+  left) and copied `DISK_SLOT16` to `$45` for section 11's reboot, which now jumps to page 3's `REBOOT` (`$676E`).
+  Section 11 still writes the Hall of Fame with the crack's slot 6 writer: [TODO.md](TODO.md).
 - Not reproduced: the loader's head position in `$D40E` (nothing reads it now), its zero page and stack; the ROM
   copied to the language card (`ROM_TO_LC`), which T02-T03 overwrite anyway; `Init` and `AUX_LOADER`'s copy stay at
   `$7000-$75FF` until the intro's first track. tiny-dos's `dbgAddMemRegion` hypercall isn't called: from the aux

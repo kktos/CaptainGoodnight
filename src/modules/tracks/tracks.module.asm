@@ -32,7 +32,9 @@
 
 		.MODULE	PART1
 		.segment	B_T01
-		.incbin	"../../../bin/b.T01.bin"
+		.namespace	part1
+		.include	"part1.asm"
+		.end namespace
 		.segment	B_T02
 		.incbin	"../../../bin/b.T02.bin"
 		.segment	B_T03
@@ -120,9 +122,10 @@
 
 		.MODULE	END11
 		.segment	A_T21
-		.incbin	"../../../bin/a.T21.bin"
-		.segment	A_T22
-		.incbin	"../../../bin/a.T22.bin"
+	; and A_T22, from $7300
+		.namespace	end11
+		.include	"end11.asm"
+		.end namespace
 
 		.MODULE	T20
 		.segment	A_T20
