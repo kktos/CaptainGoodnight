@@ -1,0 +1,48 @@
+# Captain Goodnight (SAN Inc crack), side A: boot load sequence
+# Disk positions: Ttt Ss, DOS 3.3 logical order (as in the .dsk).  Replayed by tools/mem.py.
+disk ../assets/CAPTAIN_GOODNIGHT_A.dsk
+
+# P5 PROM: T00 S0 -> $0800, JMP $0801 (X = slot*16, also in $2B)
+read 00 0-0 $08
+save ../mem/boot0.bin $0800 $08FF
+# boot0 ($0801): clears $2000-$5FFF, HGR page 1 full screen, decrypts $0850-$094F (EOR $A5) into
+# $0060-$015F, SP = $FF, RTS: the stack page holds a chain of return addresses.
+# Only $0850-$08FF was loaded: $0110-$015F comes from whatever $0900-$094F held (unused).
+eor $0850 $0060 $B0 $A5
+save ../mem/stage2.bin $0000 $01FF
+# stage 2: RTS -> $00B4 ($00-$03 = D4 D5 D6 D7, A = X = 4), RTS -> $0060: $0801 = RTS, $7C = $Cn,
+# then 4 x JSR $Cn5C (the PROM's ReadSector, which now returns through $0801): T00 physical 1-4
+# -> $0400-$07FF; RTS -> $0400 (an RTS), RTS -> $0401 (JMP $0406)
+read 00 7-7 $04             # physical 1
+read 00 E-E $05             # physical 2
+read 00 6-6 $06             # physical 3
+read 00 D-D $07             # physical 4
+save ../mem/loader.bin $0400 $07FF
+
+# loader ($0406): $063D-$073C -> $0300 (anti-tamper page: BRK / reset / errors wipe memory and
+# reboot), JSR $0363 (ROM $F800-$FFFF -> LC RAM, vectors -> $0300); $BFFF = boot slot*16.
+# READ_TRACK ($06CF): one whole track, sector s -> page start+s, from track 1 on, one per entry of
+# the $04C3 table (entries in 8-page halves, bit 0: LC bank 1):
+copy $063D $0300 $100
+save ../mem/page3.bin $0300 $03FF
+read 01 0-F $D0             # LC bank 1 $D000-$DFFF
+save ../mem/lc1.bin $D000 $DFFF
+read 02 0-F $E0             # LC $E000-$FFFF
+read 03 0-F $F0
+read 04 0-F $D0             # LC bank 2 $D000-$DFFF
+read 05 0-F $08             # $0800-$27FF
+read 06 0-F $18
+read 07 0-F $60             # $6000-$6FFF
+# checks: XOR / sum of those 28 halves = $0404 / $0405 ($20 / $2C), else JMP $0305 (wipe)
+# then JSR $0366 (vectors), $D40E (bank 2) = head position (phase), JMP $6300
+save ../mem/lc2.bin $D000 $DFFF
+save ../mem/lchi.bin $E000 $FFFF
+save ../mem/game.bin $0000 $BFFF
+
+# run-time loads, all through LC bank 2 (to be mapped, see README):
+#   $D000 JMP $D502  load section A from the $DF0B (tracks) / $DF6B (pages) lists, A = $FF: track X+1
+#                    to pages Y..; then side check $6304/$6303 vs $D552/$D55E
+#   $D003 JMP $D654  ?
+#   $D006 JMP $DA6D  ?
+#   $D3A6            load track A+1 to pages Y.. (swaps zero page $00-$1F with $D400-$D41F)
+#   $D00C            RWTS (DOS 3.3-derived); $D0D0 write path?

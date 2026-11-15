@@ -1,0 +1,10 @@
+# the original disks, and what the tools generate from them
+assets/*.dsk
+bin/
+mem/
+out/
+
+dist/
+node_modules/
+__pycache__/
+.DS_Store
