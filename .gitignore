@@ -3,6 +3,8 @@ assets/**/*.dsk
 bin/
 mem/
 out/
+# the disks' leftover source text (tools/srcfrag.py): theirs, not to publish
+notes/srcfrag_*.txt
 
 dist/
 node_modules/
