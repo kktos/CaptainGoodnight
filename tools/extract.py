@@ -100,6 +100,8 @@ def main():
     write("page3.0300-03FF.bin", at(0x063D, 0x100), 0x0300)
     write("game.0800-27FF.bin", pages(main_mem, 0x08, 0x27), 0x0800)
     write("game.6000-6FFF.bin", pages(main_mem, 0x60, 0x6F), 0x6000)
+    # the UTILITIES, without the intro ($6300-$6FFF), which the build assembles from src/modules/game/intro.asm
+    write("game.6000-62FF.bin", pages(main_mem, 0x60, 0x6F)[:0x300], 0x6000)
     write("lc1.D000-DFFF.bin", pages(lc1, 0xD0, 0xDF), 0xD000)
     write("lc2.D000-DFFF.bin", pages(lc2, 0xD0, 0xDF), 0xD000)
     # split around $D00C-$D3C5, the disk layer the build replaces: the RWTS, READ_TRACK, READ_TRACK_AT, LOAD_TRACK

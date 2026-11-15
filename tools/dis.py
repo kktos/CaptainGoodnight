@@ -401,13 +401,13 @@ class Dis:
                     opnd = self.sym(t, off)
                 elif n == 3:
                     v = raw[1] | raw[2] << 8
-                    if md in ("abx", "aby") and 0xC080 <= v <= 0xC08F:
+                    if md in ("abx", "aby") and 0xC080 <= v <= 0xC08F and off not in self.operands:
                         opnd = DISKII[v - 0xC080]   # slot-indexed Disk II I/O
                     else:
                         opnd = self.operands.get(off) or \
                             (m.rebases.get(v) if md in ("abx", "aby") else None) or self.sym(v, off)
                 elif md == "imm":
-                    opnd = f"${raw[1]:02X}"
+                    opnd = self.operands.get(off) or f"${raw[1]:02X}"
                 elif n == 2:
                     opnd = self.operands.get(off) or self.sym(raw[1], off, zp=True)
                 else:
@@ -526,6 +526,16 @@ class Dis:
                 head.append(f"{n} = ${a:04X}")
         return "\n".join(head + body) + "\n"
 
+    def oexpr(self, off):
+        """The operand override at off, if any; the symbols it names get their equates."""
+        e = self.operands.get(off)
+        if e:
+            names = {n: a for a, n in self.m.syms.items()}
+            for w in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", e):
+                if w in names:
+                    self.used.add(names[w])
+        return e
+
     def asym(self, addr, near, zp=False):
         r = self.sym(addr, near, zp)
         if addr in self.m.syms and r == self.m.syms[addr]:
@@ -575,18 +585,18 @@ class Dis:
                     opnd = self.asym(t, off)
                 elif n == 3:
                     v = raw[1] | raw[2] << 8
-                    if md in ("abx", "aby") and 0xC080 <= v <= 0xC08F:
+                    if md in ("abx", "aby") and 0xC080 <= v <= 0xC08F and off not in self.operands:
                         opnd = f"${v:04X}"          # slot-indexed Disk II I/O
                         self.notes.setdefault(off, DISKII[v - 0xC080])
                     else:
-                        opnd = self.operands.get(off) or \
+                        opnd = self.oexpr(off) or \
                             (m.rebases.get(v) if md in ("abx", "aby") else None) or self.asym(v, off)
                     if v < 0x100 and md in ("abs", "abx", "aby"):
                         mn += ".w"                  # absolute form of a zp address
                 elif md == "imm":
-                    opnd = f"${raw[1]:02X}"
+                    opnd = self.oexpr(off) or f"${raw[1]:02X}"
                 elif n == 2:
-                    opnd = self.operands.get(off) or self.asym(raw[1], off, zp=True)
+                    opnd = self.oexpr(off) or self.asym(raw[1], off, zp=True)
                 if md == "imp":
                     text = mn
                 elif md == "acc":

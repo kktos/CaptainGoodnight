@@ -227,10 +227,37 @@ entries), each hit checked by disassembly. `extract.py` keeps that list and fail
 | 7, 8, 10 | B, A, A | `$59`, `$11`, `$35` | none |
 | 9, 11 | A | `$23`, `$47` | above |
 
-The intro's script (`$631A-$63A2`, run by `$63A3`): opcode 0 X Y = `LOAD_TRACK`; 1 a: `$F9` = a, `$6628`; 2: `$65EF`;
-3 a: `$664F` with X = a; 4: `$667C`; 5 / 6: HGR page 1 / 2; 7 a b: `$F1` = a, `$F9` = b, `$6828` (a picture?); 8: goes on
-if `$7FFF` = `$AA`, else ends the intro (`$68A4`, C = 1); anything else (`$FF`): `$67C6`, then from the start again. A key or a button: `$68A4`, the "TURN DISK OVER
-AND PRESS ANY KEY." (`$6984`), section 1.
+The intro (meta `intro`, `$6300-$6FFF`, side A T07). Its script (`SCRIPT` `$631A-$63A1`, `SCRIPT_PC` `$63A2`, run by
+`RUN_SCRIPT` `$63A3`):
+
+| Op | Args | Does |
+| --- | --- | --- |
+| 0 | X Y | `LOAD_TRACK` X (track - 1) to pages Y.. (`LOAD_SECTION` A = `$FF`) |
+| 1 | a | `CLEAR_HOLES` `$6628`: zeroes the screen holes of page `$20` + a (a = `$00` page 1, `$20` page 2) |
+| 2 | | `WIPE` `$65EF`: page 2 -> page 1, two columns a step from the centre out |
+| 3 | n | `PAUSE` `$664F`: n+1 x `WAIT` 0 |
+| 4 | | `TUNE` `$667C`: `TUNE_NOTES` (`$671D`, 42 notes of 4 bytes, the 2nd unused) the first time, a pause after |
+| 5 / 6 | | show page 1 / 2 |
+| 7 | a p | `UNPACK` `$6828`: the picture at page a to hires page p (`$20` / `$40`) |
+| 8 | | `CHECK_SIDE`: on if `$7FFF` (T11's last byte) = `$AA`, else `TURN_DISK` with C = 1 |
+| other (`$FF`) | | `FLASH_BAND` `$67C6`: page 2's bottom 9 rows inverted 7 times, then the script from the start |
+
+It loads T11-T15 to `$7000-$BFFF`, shows the five pictures (the first one straight, the others wiped in, the tune
+after the second), then T16-T1A and T1B-T1D the same way, flipping pages. The pictures are RLE (`0 count value`, count 0
+= 256, else a literal byte), column by column, the odd rows of all 40 columns first, then the even rows.
+
+Every step, pause and note polls the keyboard and the buttons: any of them goes to `TURN_DISK` (`$68A4`) with C = 0.
+`TURN_DISK` is also the game's set-up: LC bank 1 in (the CAPTAIN module), `MIRROR` (`$0200`, each byte's 7 pixels
+reversed, the palette bit kept) and a column table at `$1F00` (X in 2-pixel units -> byte column, X / 3.5, X >= 140
+giving -34..-1). It clears both hires pages, draws "TURN DISK OVER AND PRESS ANY KEY." (`TURN_MSG` `$69A0`, a 40 x 11
+bitmap in a striped frame) on page 1 at rows 41-51 and shows it. It waits for a key or a button, unless C = 1:
+`CHECK_SIDE` saw the side B already in. Then it shows the blank page 2, and `JMPDISK` 1: `LOAD_SECTION` 1, which asks
+"PLEASE FLIP DISK AND PRESS A KEY." if side A is still in.
+
+At the start (`$6314`), `CHECK_JOYSTICK` (`$6B58`): both buttons read as down means no joystick, and the intro prints
+"JOYSTICK NOT CONNECTED PROPERLY: / PLEASE CHECK FOR LOOSE OR NO CONNECTION." in text and hangs. `FILL_PAGE2` (`$6806`)
+is never called. `$6C06-$6FFF` holds a piece of a tokenized Applesoft program, a developers' tool for a "VIRTUAL
+DRIVE/TRACK OFFSET TABLE" on a 10 or 20 MB hard disk.
 
 Section 6's end (side B T22 at `$B8BB`, after a key or a button), from the outcome in `$80` (and `$81`):
 
@@ -307,7 +334,8 @@ address); `dbgAddMemRegion`, its vm6502 hypercall, isn't called (section 11).
 
 The loader's `$D40E` (the head position, which nothing reads now), its zero page and stack; `ROM_TO_LC`, whose copy
 T02-T03 overwrite anyway. `Init` and `AUX_LOADER`'s copy stay at `$7000-$75FF` until the intro's first track. The
-intro's "TURN DISK OVER AND PRESS ANY KEY." stays: it's the game's.
+intro's "TURN DISK OVER AND PRESS ANY KEY." is skipped: `DRAW_MSG` (`$6935`) is `PLP / JMP TO_SECTION1`, so a key
+goes straight to section 1 (`src/modules/game/intro.asm`, `tools/patches.py`).
 
 ## 10. Leftover original source
 

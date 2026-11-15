@@ -3,7 +3,7 @@
 Check the built volume against what tools/extract.py took from the original disks, before booting it.
 
 Reads dist/captain.po as tiny-dos does (the volume directory, each file's index block), and checks:
-  GAME   = page3, game.0800-27FF, game.6000-6FFF
+  GAME   = page3, game.0800-27FF, game.6000-6FFF (with the patches of tools/patches.py)
   LC     = lc1, lc2, lchi; lc2 may differ only in $D00C-$D3C5, the disk layer replaced
   tracks: every bin/{a,b}.Txx.bin, found as AuxLoadTrack finds it, from the TrackMap and FileRecords of the
           AUX_LOADER the build put in CAPTAIN (addresses from dist/captain.sym), is the same 4K, with the patches
@@ -79,7 +79,7 @@ def main():
     # the boot image
     same("GAME $0300", data("GAME", 0, 1)[:0x100], binfile("page3.0300-03FF.bin"))
     same("GAME $0800-$27FF", data("GAME", 1, 16), binfile("game.0800-27FF.bin"))
-    same("GAME $6000-$6FFF", data("GAME", 17, 8), binfile("game.6000-6FFF.bin"))
+    same("GAME $6000-$6FFF", data("GAME", 17, 8), patched("game.6000-6FFF.bin", binfile("game.6000-6FFF.bin")))
     lc = data("LC")
     same("LC bank 1", lc[0x0000:0x1000], binfile("lc1.D000-DFFF.bin"))
     lc2, lc2_orig = lc[0x1000:0x2000], binfile("lc2.D000-DFFF.bin")

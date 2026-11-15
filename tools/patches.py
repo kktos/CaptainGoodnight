@@ -1,11 +1,19 @@
 """
-The rehost's changes to the extracted tracks (bin/), outside the disk layer: what the build's sources change, so
-tools/check.py and tools/loadtest.py expect the patched bytes, and nothing else differs.
+The rehost's changes to what tools/extract.py wrote (bin/: the boot image, the tracks), outside the disk layer:
+what the build's sources change, so tools/check.py and tools/loadtest.py expect the patched bytes, and nothing
+else differs.
 
   PATCHES[bin name] = [(offset in the 4K, the new bytes, why)]
 """
 
 PATCHES = {
+    "game.6000-6FFF.bin": [
+        # src/modules/game/intro.asm
+        (0x0935, bytes([0x28, 0x4C, 0x95, 0x69]), "INTRO DRAW_MSG $6935: no \"TURN DISK OVER AND PRESS ANY KEY.\", "
+         "no wait: PLP / JMP TO_SECTION1 ($6995)"),
+        (0x0C06, bytes(0x3FA), "INTRO $6C06-$6FFF: a leftover piece of a tokenized Applesoft program, which nothing "
+         "reads: zeroes"),
+    ],
     "b.T01.bin": [
         # src/modules/tracks/part1.asm
         (0x000B, bytes([0xEA] * 0x1C), "PART1 $630B-$6326: LC bank 2, SLOT16 from DISK_SLOT16, the RNG seed from the "

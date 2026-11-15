@@ -26,3 +26,5 @@ sym INITCAPT $D32E
 
 # LC bank 2: the disk layer (meta/lc2.meta)
 sym DISK_SLOT16 $D009 ; slot*16, from GAME_SLOT16 ($BFFF) at the first LOAD_SECTION
+sym MIRROR $0200 ; each byte's pixels reversed (built by the intro's TURN_DISK)
+sym SETSCRN $6231 ; X = the game's Y (0 = bottom) -> $0B/$0C, + $0F (page)

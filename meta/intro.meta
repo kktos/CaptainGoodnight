@@ -1,0 +1,270 @@
+# The intro, side A T07 $6300-$6FFF (the boot image), run by the loader's JMP $6300, LC bank 2 read/write.
+# $6000-$62FF in the same track are the resident UTILITIES (game.sym): only $6300-$6FFF is rendered.
+# A script (SCRIPT, run by RUN_SCRIPT) loads the pictures (side A T11-T1D), unpacks them and shows them, with a
+# tune, forever. A key or a button at any point: TURN_DISK, "TURN DISK OVER AND PRESS ANY KEY.", then section 1.
+source ../bin/game.6000-6FFF.bin
+include apple2io.sym
+include game.sym
+# LC bank 2 is in while the intro runs: $D000 is LOAD_SECTION's entry, not bank 1's WAITING
+sym LOAD_SECTION_V $D000
+# zero page, the intro's
+sym PAL_BIT $01 ; TURN_DISK: bit 7 (palette) of the byte being mirrored
+sym SRC $09 2 ; TURN_DISK: the message bitmap
+sym SCRN $0B 2 ; SETSCRN's row address; also CLEAR_HOLES' page
+sym SCRN_PAGE $0F ; SETSCRN: added to yhigh (0: page 1)
+sym MIRROR_TMP $1B
+sym MSG_Y $1F ; TURN_DISK: the game's Y of the message row (0 = bottom)
+sym MSG_X $20
+sym COUNTER $80 ; +1 at every script step and pause: section 1 seeds its RNG with it
+sym NOTE_PERIOD $D0
+sym NOTE_COUNT $D1
+sym NOTE_LEN_HI $D2
+sym NOTE_LEN_LO $D3
+sym NOTE_INDEX $D5
+sym NOTE_D6 $D6
+sym NOTE_D7 $D7
+sym NOTE_D8 $D8
+sym WIPE_SRC $E1 2
+sym WIPE_DST $E3 2
+sym WIPE_LEFT $E5
+sym WIPE_RIGHT $E6
+sym FLASH_COUNT $E9
+sym TUNE_PLAYED $EA
+sym PACK_SRC $F0 2
+sym PACK_COL $F2
+sym PACK_PASS $F4 ; 1: odd rows, 0: even rows
+sym PACK_DST $F5 2
+sym RUN_VALUE $F7
+sym RUN_COUNT $F8
+sym PAGE $F9 ; UNPACK, ROW_ADDR: $20 page 1, $40 page 2; CLEAR_HOLES: $00 page 1, $20 page 2
+$0000 org $6000
+window $6300 $6FFF
+
+@$6300 code
+@$6300 label INTRO
+@$6300 comment the intro's entry (the loader's JMP $6300)
+@$6303 label SECTION_MARKS
+@$6303 note DISK_MARK ($6303) = $A2 = SECTION_MARK[0], SIDE_MARK ($6304) = 0 (side A): also this LDX #$00
+@$6305 label FLUSH_START
+@$6305 comment clears the keyboard; the script from its start, the tune not played yet
+@$6314 note both buttons down: no joystick, or a bad one
+@$631A comment the script: 0 X Y LOAD_TRACK X (track - 1) to page Y | 1 a CLEAR_HOLES ($00 page 1, $20 page 2) |
+@$631A comment 2 WIPE page 2 -> page 1 | 3 n PAUSE n+1 | 4 TUNE | 5 / 6 show page 1 / 2 | 7 a p UNPACK page a to page p |
+@$631A comment 8 CHECK_SIDE | $FF (anything else) FLASH_BAND, then from the start again
+@$631A label SCRIPT
+@$631A db 3 ; T11 -> $7000
+@$631D db 3 ; T12 -> $8000
+@$6320 db 3 ; T13 -> $9000
+@$6323 db 3 ; T14 -> $A000
+@$6326 db 3 ; T15 -> $B000
+@$6329 db 1 ; side A in the drive?
+@$632A db 3 ; $7000 -> page 1
+@$632D db 2
+@$632F db 1 ; show page 1
+@$6330 db 2
+@$6332 db 3 ; $8000 -> page 2
+@$6335 db 2
+@$6337 db 1 ; wipe it in
+@$6338 db 1 ; the tune (the first time round)
+@$6339 db 3 ; $9000 -> page 2
+@$633C db 2
+@$633E db 1
+@$633F db 2
+@$6341 db 3 ; $A000 -> page 2
+@$6344 db 2
+@$6346 db 1
+@$6347 db 2
+@$6349 db 3 ; $B000 -> page 2
+@$634C db 2
+@$634E db 1
+@$634F db 2
+@$6351 db 3 ; T16 -> $7000
+@$6354 db 3 ; T17 -> $8000
+@$6357 db 3 ; T18 -> $9000
+@$635A db 3 ; T19 -> $A000
+@$635D db 3 ; T1A -> $B000
+@$6360 db 1
+@$6361 db 3 ; $7000 -> page 2, shown
+@$6364 db 1
+@$6365 db 2
+@$6367 db 3 ; $8000 -> page 1, shown
+@$636A db 1
+@$636B db 2
+@$636D db 3
+@$6370 db 1
+@$6371 db 2
+@$6373 db 3
+@$6376 db 1
+@$6377 db 2
+@$6379 db 3
+@$637C db 1
+@$637D db 2
+@$637F db 3 ; T1B -> $7000
+@$6382 db 3 ; T1C -> $9000
+@$6385 db 3 ; T1D -> $8000
+@$6388 db 1
+@$6389 db 3
+@$638C db 1
+@$638D db 2
+@$638F db 3
+@$6392 db 1
+@$6393 db 2
+@$6395 db 3 ; $8000 -> page 1 and page 2
+@$6398 db 2
+@$639A db 1
+@$639B db 3
+@$639E db 2
+@$63A0 db 1
+@$63A1 db 1 ; the end: FLASH_BAND, again
+@$63A2 db 1
+@$63A2 label SCRIPT_PC
+
+@$63A3 label RUN_SCRIPT
+@$63CE label OP_CHECK_SIDE
+@$63CE note $7FFF is T11's last byte: $AA on side A, not on side B
+@$63D5 note C = 1: the disk was turned over already, TURN_DISK won't ask
+@$63D9 label OP_END
+@$63E1 label OP_LOAD_TRACK
+@$63F0 note LOAD_SECTION A = $FF: LOAD_TRACK X to pages Y.., no check
+@$63FA label OP_CLEAR_HOLES
+@$6409 label OP_WIPE
+@$640F label OP_PAUSE
+@$641D label OP_TUNE
+@$6423 label OP_PAGE1
+@$6429 label OP_PAGE2
+@$642F label OP_UNPACK
+@$6445 label NEXT_OP
+@$6445 comment the next step; a key or a button ends the intro
+@$645C label NEXT_OP_BUTN0
+@$6463 label NEXT_OP_BUTN1
+@$6468 label NEXT_OP_KEY
+
+@$646F comment the game's yhigh / ylow, again (the same bytes): Y 0 = row 191, page 1
+@$646F db 192
+@$646F label ROW_HI
+@$652F db 192
+@$652F label ROW_LO
+
+@$65EF label WIPE
+@$65EF comment page 2 -> page 1, from the centre out: columns $13 / $14, $12 / $15 ... 0 / $27, all rows but Y 0
+@$65F7 label WIPE_STEP
+@$65F9 label WIPE_ROW
+@$6627 label WIPE_DONE
+
+@$6628 label CLEAR_HOLES
+@$6628 comment zeroes the 8-byte screen holes ($xx78-$xx7F, $xxF8-$xxFF) of a hires page, PAGE = $00 / $20
+@$6635 label CLEAR_HOLES_PAGE
+@$6639 label CLEAR_HOLE1
+@$6642 label CLEAR_HOLE2
+
+@$664F label PAUSE
+@$664F comment X+1 x WAIT 0; a key or a button ends the intro
+@$6669 label PAUSE_BUTN0
+@$6670 label PAUSE_BUTN1
+@$6675 label PAUSE_KEY
+
+@$667C label TUNE
+@$667C comment the tune, once; then only a pause
+@$6685 label TUNE_PLAY
+@$668B label TUNE_NEXT
+@$66C3 label TUNE_BUTN0
+@$66CA label TUNE_BUTN1
+@$66CF label TUNE_END
+@$66CF note the end of the tune (0), or a button: on with the script. A key: TURN_DISK
+@$66D3 label TUNE_KEY
+@$66D7 label PLAY_NOTE
+@$66D7 comment a note: clicks every NOTE_PERIOD loops, for about NOTE_PERIOD x NOTE_LEN_LO x NOTE_LEN_HI loops (?)
+@$66E3 label PN_RELOAD
+@$66E3 note NOTE_COUNT from the table is overwritten here: the notes' 2nd byte is unused
+@$66E8 label PN_LOOP
+@$66F5 label PN_TICK
+@$6719 label CLICK
+
+@$671D label TUNE_NOTES
+@$671D comment 42 notes: period, (unused), length hi, length lo; 0 ends
+@$671D db 168
+@$67C5 db 1
+
+@$67C6 label FLASH_BAND
+@$67C6 comment the script's end: the bottom 9 rows of page 2 (Y 0-8) inverted 7 times, then the script again
+@$67CA label FLASH_LOOP
+@$67DD label FLASH_ROWS
+@$67DF label FLASH_ROW
+@$67EE label FLASH_BYTE
+
+@$6806 code
+@$6806 label FILL_PAGE2
+@$6806 comment not called: fills page 2 with AA D5 and shows it
+@$6810 label FILL_LOOP
+
+@$6828 label UNPACK
+@$6828 comment a picture from (PACK_SRC) to the hires page PAGE: RLE, 0 count value (count 0 = 256) or a literal byte;
+@$6828 comment column by column, the odd rows first (1, 3 ... 191 of columns 0-$27), then the even rows
+@$683A label UNPACK_NEXT
+@$6844 label UNPACK_COUNT
+@$684E label UNPACK_VALUE
+@$6852 label UNPACK_RUN
+@$6856 label UNPACK_PUT
+@$6870 label UNPACK_COL
+@$6872 label UNPACK_ROW
+@$6881 label UNPACK_DONE
+@$6882 label ROW_ADDR
+@$6882 comment PACK_DST = the hires address of screen row X (0 = top), on PAGE
+
+@$68A4 label TURN_DISK
+@$68A4 comment the intro's end. C = 0: a key or a button; C = 1: CHECK_SIDE found side B already in the drive
+@$68A8 comment LC: bank 1 RAM read / write (the CAPTAIN module), what the game runs with
+@$68AD operand LCBANK1-8
+@$68B0 operand LCBANK1-8
+@$68B3 note $2D/$2E = SPKR (the game's sound? not seen yet)
+@$68BB comment MIRROR ($0200): each byte's 7 pixel bits reversed, bit 7 (palette) kept, for FLIP (?)
+@$68BF label MIRROR_BYTE
+@$68C9 label MIRROR_BIT
+@$68DB comment $1F00: X (2-pixel units) -> byte column (X / 3.5): 0-$27 for X 0-139, then $DE-$FF (-34..-1) for X 140-255
+@$68DF label XCOL_PAIR
+@$68EB label XCOL_EVEN
+@$68FB label XCOL_ODD
+@$6910 label CLEAR_HGR
+@$6910 comment clears both hires pages, shows page 2 (blank), full screen
+@$691A label CLEAR_HGR_LOOP
+@$6935 comment draws the message on page 1, Y $96 down to $8C (rows 41-51), then shows it
+@$6935 label DRAW_MSG
+@$6939 operand <TURN_MSG
+@$693D operand >TURN_MSG
+@$6941 note the top row: Y $96 (screen row 41)
+@$6968 note down to Y $8C (row 51): 11 rows
+@$6945 label MSG_ROW
+@$694E label MSG_BYTE
+@$695C label MSG_NEXT
+@$6971 label FLUSH_KBD
+@$6977 note C = 1: no question, side B is in already
+@$697A label WAIT_KEY
+@$6989 label WAIT_BUTN1
+@$6990 label WAIT_BUTN0
+@$6995 label TO_SECTION1
+@$6998 note page 2, blank, for LOAD_SECTION's messages
+@$699B comment LOAD_SECTION 1 (side B): if side A is still in, it asks "PLEASE FLIP DISK AND PRESS A KEY."
+
+@$69A0 label TURN_MSG
+@$69A0 comment "TURN DISK OVER AND PRESS ANY KEY." in a striped frame: 11 rows x 40 bytes, the top row first
+@$69A0 db 440
+
+@$6B58 label CHECK_JOYSTICK
+@$6B58 comment both buttons read as down: no joystick (or a bad one). The message, and a hang
+@$6B5E label CHECK_BUTN1
+@$6B64 label NO_JOYSTICK
+@$6B6E label CLEAR_TEXT
+@$6B8C label JOY_LINE1
+@$6B9F label JOY_LINE2
+@$6BB3 label HANG
+@$6BB6 label JOY_MSG1
+@$6BB6 text 40
+@$6BB6 note text row 2
+@$6BDE label JOY_MSG2
+@$6BDE text 40
+@$6BDE note text row 4
+
+@$6C06 comment leftover: a piece of a tokenized Applesoft program, a developers' tool ("VIRTUAL DRIVE/TRACK OFFSET
+@$6C06 comment TABLE", "INTERLEAVING SPEC", "IF YOU HAVE A 10 MB DRIVE"): not the game's
+@$6C06 label LEFTOVER_BASIC
+@$6C06 db 1018
