@@ -7,6 +7,8 @@ tiny-dos lives in the aux language card.
 
 The game is the SAN Inc crack's code and data, untouched: only its disk code is replaced.
 
+The full notes: [docs/CAPTAIN_GOODNIGHT_RE.md](docs/CAPTAIN_GOODNIGHT_RE.md).
+
 ## Setup
 
 ```sh
@@ -46,9 +48,10 @@ The load map is [meta/loadmap.txt](meta/loadmap.txt).
 
 ## How the game loads (LC bank 2)
 
-The game runs with LC bank 1 switched in. Three trampolines switch bank 2 in for the disk layer
-([meta/lc2.meta](meta/lc2.meta)) and bank 1 back: `$1D17` (`LOAD_SECTION` A, then `JMP $6300`), `$1D2B` (`$D003`,
-then `RTS`) and `$1D3B` (`$D006`, then `JMP $6300`). The disk layer is a read-only RWTS (`$D00C` data field, `$D0E4`
+The game runs with LC bank 1 switched in (the CAPTAIN module: `WAITING` `$D000`, `DRAWGOOD` `$D023`, `CERASE`
+`$D19C`, `INITCAPT` `$D32E`). Three trampolines switch bank 2 in and bank 1 back: `JMPDISK` `$1D17` (`LOAD_SECTION`
+A, then `JMP $6300`), `JMPTIME` `$1D2B` (`$D003`, then `RTS`) and `JMPGOVER` `$1D3B` (`$D006`, the game over, then
+`JMP $6300`); names from the developers' equates left on side A (T14 S8-SC). The disk layer is a read-only RWTS (`$D00C` data field, `$D0E4`
 seek, `$D121` address field, `$D300` a track's sectors to a page list), `LOAD_TRACK` (`$D3A6`: track A+1 to pages
 Y.., with the game's zero page `$00-$1F` swapped with `$D400`) and `LOAD_SECTION` (`$D502`, through `$D000`):
 
@@ -69,9 +72,10 @@ every track read to `bin/`. It also fails on any call into the loaders that it d
 | section 9               | section 6's end (`$B8D1`, `$B8DA`)                     | A    | T1E, T1F, T10                       | `$6300-$92FF`              |
 | section 11              | section 6's end (`$B8EC`), section 9                   | A    | T21, T22                            | `$6300-$82FF`              |
 | `LOAD_TRACK`            | section 11 (`$7455`)                                   | A    | T20                                 | `$B000-$BFFF`              |
-| `LOAD_TRACK`            | the endings, `$D006` (bank 2 `$DA71`, `$DC75`), until `$B802` = `$9A`, then `JMP $B800` | B | T22 | `$B000-$BFFF` |
+| `LOAD_TRACK`            | the game over, `GOVER` (`$D006`, bank 2 `$DA71`, `$DC75`), until `$B802` = `$9A`, then `JMP $B800` | B | T22 | `$B000-$BFFF` |
 
-Section 6's end picks the next section from the outcome in `$80` (and `$81`): 8, 9, 10 or 11.
+Section 6's end picks the next section from the outcome in `$80` (and `$81`): 8 (`$80` = 1), 10 (`$80` = 0, `$81` =
+0), 11 (`$80` = 4, or 0 with `$81` <> 0), 9 otherwise.
 
 Leftovers: section 0 (T0E-T10 to `$0800`/`$1800`/`$6000`, the original's main code load: empty on this crack, which
 reads those pages from T05-T07 at boot, and nothing calls it); sections 7, 8 and 10 have no tracks; side A T08 S0 -
@@ -116,7 +120,7 @@ Each segment of a file starts on a block, so a track is 8 blocks at 8 x its inde
 - Checked: [tools/check.py](tools/check.py) reads the built `.po` as tiny-dos does and finds every track as
   `AuxLoadTrack` does, from the built `TrackMap`; [tools/loadtest.py](tools/loadtest.py) and
   [test/loadtest.asm](test/loadtest.asm) call every load in vm6502 (sections 1-6, 9, 11, the 13 intro tracks, T20,
-  the endings' T22) and compare their checksums: all as extracted. It boots to the intro, and a key starts
+  the game over's T22) and compare their checksums: all as extracted. It boots to the intro, and a key starts
   section 1.
 - Not reproduced: the loader's head position in `$D40E` (nothing reads it now), its zero page and stack; the ROM
   copied to the language card (`ROM_TO_LC`), which T02-T03 overwrite anyway; `Init` and `AUX_LOADER`'s copy stay at
@@ -128,6 +132,7 @@ Each segment of a file starts on a block, so a track is 8 blocks at 8 x its inde
 
 - Sections 8 and 10 load nothing, so `LOAD_SECTION` checks the marks of the `$6300` page that is already there,
   section 6's (side B): it asks to flip the disk forever (checked in vm6502: section 6, then 8). The game's code, not
-  the crack's or the rehost's. When does section 6 end with `$80` = 1, or `$80` = 4 and `$81` = 0?
-- `$D003` (`$D654`) and `$D006` (`$DA6D`, A = 0): what they draw.
+  the crack's or the rehost's. When does section 6 end with `$80` = 1, or `$80` = 0 and `$81` = 0?
+- `TIME` (`$D003` -> `$D654`) and `GOVER` with A = 0 (`$DA6D`): what they draw. `GOVER`'s `$DC8E` reloads section 2:
+  play again?
 - Played only to section 1's start: the rest is checked by the load test, not by playing.

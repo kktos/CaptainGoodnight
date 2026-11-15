@@ -23,17 +23,20 @@ sym AUX_NIBS $D4AA 86
 sym SIDE_MARK $6304
 sym DISK_MARK $6303
 sym GAME_SLOT16 $BFFF
-sym DRAW_TEXT $1A6A
-sym WAIT_FRAME $6225
-sym LINE_LO $19AA
-sym LINE_HI $18EA
+# names from the leftover equates (side A T14 S8-SC)
+sym DOTEXT $1A6A
+sym WAIT $6225
+sym ylow $19AA
+sym yhigh $18EA
 $0000 org $D000
 $0000 code
 $0000 label LOAD_SECTION_V
 $0003 code
-$0003 label ENTRY_D003_V
+$0003 label TIME_V
+$0003 note through JMPTIME ($1D2B): names from the leftover equates (side A T14 S8-SC)
 $0006 code
-$0006 label ENTRY_D006_V
+$0006 label GOVER_V
+$0006 note through JMPGOVER ($1D3B)
 $0009 label DISK_SLOT16
 $0009 db 1
 $0009 note slot*16, from GAME_SLOT16 at the first LOAD_SECTION
@@ -127,9 +130,12 @@ $000A label ERR_RTS
 @$D62C comment A -> rows 0-6 of both hires pages (clears or sets the message band)
 @$D62B label FILL_BYTE
 @$D654 code
-@$D654 label ENTRY_D003
+@$D654 label TIME
+@$D654 comment the time screen? (JMPTIME), not read yet
 @$DA6D code
-@$DA6D label ENTRY_D006
+@$DA6D label GOVER
+@$DA6D comment the game over (JMPGOVER): A -> $80; A <> 0: LOAD_TRACK side B T22 to $B000 until $B802 = $9A
+@$DA6D comment (asks to flip otherwise, $DFC5), JMP $B800
 @$DF0B label TRACK_LISTS
 @$DF0B db $60
 @$DF0B comment section n: tracks - 1 at TRACK_LISTS + 8n, $FF ends; pages at PAGE_LISTS + 8n

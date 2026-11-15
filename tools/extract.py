@@ -12,8 +12,8 @@ Later, everything goes through LC bank 2 (see meta/lc2.meta):
                    side SECTION_SIDE[n] ($D552); then the $6300 page loaded must hold $6303 = SECTION_MARK[n]
                    ($D55E) and $6304 = the side
   LOAD_TRACK       (LOAD_SECTION with A = $FF) X = track - 1 to pages Y.., from the side in the drive:
-                   the intro's script ($631A, opcode 0: X, Y), the endings (side B's T22 to $B000, checked by
-                   $B802 = $9A), section 11 (side A's T20 to $B000)
+                   the intro's script ($631A, opcode 0: X, Y), the game over (GOVER, side B's T22 to $B000,
+                   checked by $B802 = $9A), section 11 (side A's T20 to $B000)
 
 Every call into these loaders found in the code (the boot image and every track loaded) must be one listed
 here: the script fails on any other, and on any check the game does that the data doesn't pass.
@@ -175,27 +175,27 @@ def main():
     # LOAD_TRACK: the fixed calls. (code, the bytes there, side, track, page)
     lt = bytes.fromhex("a9ffa2")  # LDA #$FF / LDX #
     fixed = [
-        ("bank 2 $DA71 (ending)", b2(0xDA71, 9), "B", 0x22, 0xB0, "20 02 d5"),
-        ("bank 2 $DC75 (ending)", b2(0xDC75, 9), "B", 0x22, 0xB0, "20 02 d5"),
+        ("bank 2 $DA71 (game over)", b2(0xDA71, 9), "B", 0x22, 0xB0, "20 02 d5"),
+        ("bank 2 $DC75 (game over)", b2(0xDC75, 9), "B", 0x22, 0xB0, "20 02 d5"),
         ("section 11 $7455", track("A", 0x22)[0x155:0x15E], "A", 0x20, 0xB0, "20 00 d0"),
     ]
     for where, code, side, t, page, jsr in fixed:
         if code != lt + bytes([t - 1, 0xA0, page]) + bytes.fromhex(jsr):
             fail(f"{where}: {code.hex(' ')} isn't LOAD_TRACK T{t:02X} to ${page:02X}00")
         use(side, t, page, where)
-    if sector("B", 0x22, 8)[2] != 0x9A:  # what the endings check before JMP $B800
+    if sector("B", 0x22, 8)[2] != 0x9A:  # what GOVER checks before JMP $B800
         fail("side B T22: $B802 isn't $9A")
     print("LOAD_TRACK:", ", ".join(f"{w}: {s} T{t:02X}>${p:02X}00" for w, _, s, t, p, _ in fixed))
 
     # every call into the loaders, in the boot image and in each track loaded: only the known ones
     known = {
-        ("boot", 0x1D1F), ("boot", 0x63F2),  # SECTION_JMP's JSR $D000, the intro's LOAD_TRACK
-        ("bank 2", 0xDA77), ("bank 2", 0xDC7B), ("bank 2", 0xDC90),  # endings, continue (section 2)
+        ("boot", 0x1D1F), ("boot", 0x63F2),  # JMPDISK's JSR $D000, the intro's LOAD_TRACK
+        ("bank 2", 0xDA77), ("bank 2", 0xDC7B), ("bank 2", 0xDC90),  # GOVER, and its section 2 (play again?)
         ("A T22", 0x745B),  # section 11's LOAD_TRACK T20
     }
     section_calls = {}
     targets = {0xD000: "LOAD_SECTION_V", 0xD502: "LOAD_SECTION", 0xD3A6: "LOAD_TRACK", 0xD36B: "READ_TRACK_AT",
-               0xD300: "READ_TRACK", 0xD00C: "READ_DATA", 0x1D17: "SECTION_JMP"}
+               0xD300: "READ_TRACK", 0xD00C: "READ_DATA", 0x1D17: "JMPDISK"}
     code = [("boot", bytes(game[0x0800:0x2800]), 0x0800), ("boot", bytes(game[0x6000:0x7000]), 0x6000),
             ("bank 1", pages(lc1, 0xD0, 0xDF), 0xD000), ("bank 2", bank2[0x600:], 0xD600),
             ("$E000", pages(lchi, 0xE0, 0xFF), 0xE000)]
@@ -212,8 +212,8 @@ def main():
                 elif (name, addr) not in known:
                     fail(f"{name} ${addr:04X}: a call to {targets[tgt]} this script doesn't know")
     if set(section_calls) | {2} != calls:  # section 2 is also loaded directly, by bank 2's $DC90
-        fail(f"SECTION_JMP is called with {sorted(section_calls)}, not {sorted(calls)}")
-    print("SECTION_JMP callers:", "; ".join(f"{n}: {', '.join(w)}" for n, w in sorted(section_calls.items())))
+        fail(f"JMPDISK is called with {sorted(section_calls)}, not {sorted(calls)}")
+    print("JMPDISK callers:", "; ".join(f"{n}: {', '.join(w)}" for n, w in sorted(section_calls.items())))
 
     # side A T08 S0 - T0B S7: a copy of bank 2 $D800-$DFFF, $0800-$27FF, $6000-$6FFF, which nothing reads
     copy = pages(lc2, 0xD8, 0xDF) + pages(main_mem, 0x08, 0x27) + pages(main_mem, 0x60, 0x6F)

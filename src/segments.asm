@@ -86,7 +86,7 @@
 		.segment	B_T1F		{ start: $8300, end: $92FF }
 		.segment	B_T20		{ start: $9300, end: $A2FF }
 		.segment	B_T21		{ start: $A300, end: $B2FF }
-		.segment	B_T22		{ start: $B000, end: $BFFF }	; also the endings' LOAD_TRACK ($D006)
+		.segment	B_T22		{ start: $B000, end: $BFFF }	; also GOVER's LOAD_TRACK (the game over, $D006)
 
 ; END9: section 9, side A
 		.segment	A_T1E		{ start: $6300, end: $72FF }

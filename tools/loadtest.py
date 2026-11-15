@@ -48,7 +48,7 @@ def cases():
             out.append((f"intro T{t:02X}", 0xFF, t - 1, p, 0, "a", [(t, p)]))
         pc += 1 + args[script[pc]]
     out.append(("T20 (section 11)", 0xFF, 0x1F, 0xB0, 11, "a", [(0x20, 0xB0)]))
-    out.append(("T22 ending (section 6)", 0xFF, 0x21, 0xB0, 6, "b", [(0x22, 0xB0)]))
+    out.append(("T22 game over (section 6)", 0xFF, 0x21, 0xB0, 6, "b", [(0x22, 0xB0)]))
     return out
 
 
