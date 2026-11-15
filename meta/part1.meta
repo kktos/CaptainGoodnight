@@ -1,0 +1,89 @@
+# Section 1 (PART1), side B T01: $6300-$72FF, loaded by LOAD_SECTION 1 (the intro, on a key: $699D).
+# The code goes on in T02 ($7300): T02-T05 ($7300-$B2FF) are not in this meta yet.
+source ../bin/b.T01.bin
+include apple2io.sym
+include game.sym
+$0000 org $6300
+$0000 code
+$0000 label PART1
+$0003 db 2
+$0003 label SECTION_MARKS
+$0003 note DISK_MARK ($6303) = SECTION_MARK[1], SIDE_MARK ($6304) = 1 (side B): checked by LOAD_SECTION
+$0005 code
+$0005 label START
+@$6305 comment section 1's start: a new stack, the RNG seeded from the disk
+@$6314 comment RND = the Disk II data latch EOR [$80]: the drive still spins after LOAD_SECTION's motor off,
+@$6314 comment so the latch holds whatever nibble passes under the head. In the rehost DISK_SLOT16 is the boot
+@$6314 comment slot: this reads the boot device's $C0nC.
+@$6321 comment back to the resident bank 1
+@$72FE note LDA $7E??,X: the instruction ends in T02 ($7300)
+# section 1's variables and its animation tables ($634A-$63A9): the tables hold shape numbers, drawn by
+# $0807 ($20 = X, $1F = Y, $21 = shape). One thing, at OBJ_X / OBJ_Y, is drawn in five parts ($65F2-$6711).
+@$634A comment variables and animation tables: shape numbers for $0807 ($21), at X $20 / Y $1F
+@$634A db 1
+@$634A label OBJ_X
+@$634A note X of the five-part thing drawn at $65F2 (what it is: not seen yet)
+@$634B db 1
+@$634B label OBJ_Y
+@$634C db 1
+@$634C label OBJ_STATE
+@$634C note 0, 1, 2: picks how PART3 / PART4 animate ($667D, $66DA)
+@$634D db 4
+@$634D label PART1_SHAPES
+@$634D note drawn at OBJ_X+$10, OBJ_Y+9
+@$6351 db 1
+@$6351 label PART1_FRAME
+@$6351 note 0-3
+@$6352 db 28
+@$6352 label PART4_SHAPES
+@$6352 note drawn at OBJ_X+$46, OBJ_Y-$0A
+@$636E db 1
+@$636E label PART4_FRAME
+@$636E note 0-$1A; 8 in OBJ_STATE 1
+@$636F db 12
+@$636F label PART4_SHAPES_ALT
+@$636F note instead of PART4_SHAPES while OBJ_TIMER is $16-$21, indexed by OBJ_TIMER-$16
+@$637B db 9
+@$637B label PART3_SHAPES
+@$637B note drawn at OBJ_X+$38, OBJ_Y-9
+@$6384 db 1
+@$6384 label PART3_FRAME
+@$6384 note up to 8 (then stays), down in OBJ_STATE 2
+@$6385 db 1
+@$6385 label OBJ_TIMER
+@$6385 note counts up and down with OBJ_STATE ($6559-$65A2); $50 and over: PART3 frame 0
+@$6386 db 4
+@$6386 label PART2_SHAPES
+@$6386 note drawn at OBJ_X+4, OBJ_Y-$0B
+@$638A db 1
+@$638A label PART2_FRAME
+@$638A note 0-3
+@$638B db 1
+@$638B label VAR_638B
+@$638C db 1
+@$638C label VAR_638C
+@$638D db 1
+@$638D label VAR_638D
+@$638D note $47 at the start
+@$638E db 1
+@$638E label UNUSED_638E
+@$638F db 1
+@$638F label RESTARTED
+@$638F note 1: Y at T02's prompt ($7ACE), which jumps to RESTART: the opening animation is skipped ($64B0)
+@$6390 db 1
+@$6390 note FIXED_SHAPES-1: FIXED_FRAME 0 draws nothing
+@$6391 db 14
+@$6391 label FIXED_SHAPES
+@$6391 note drawn at X $3F, Y $2B, indexed from 1 by FIXED_FRAME
+@$639F db 1
+@$639F label FIXED_FRAME
+@$639F note 1-$0E
+@$63A0 db 9
+@$63A0 label SHAPES_63A0
+@$63A0 note indexed by $39, drawn through $1BC0
+@$63A9 db 1
+@$63A9 label VAR_63A9
+@$63A9 note a count down ($6914)
+@$63AA label RESTART
+@$63AA comment the section's (re)start: its variables to 0
+rebase $6390 FIXED_SHAPES-1

@@ -8,6 +8,7 @@ SIDE_MARK	=	$6304		; of the $6300 page loaded: LOAD_SECTION checks it ($FF: a re
 SLOT16		=	$BFFF		; the boot slot * 16, which the loader leaves there
 
 ; the $0300 page (traps)
+REBOOT		=	$0340		; JMP $Cn00, the boot slot (REBOOT_SLOT)
 REBOOT_SLOT	=	$0342		; REBOOT's JMP $Cn00: the loader patches the boot slot in
 SET_VECTORS	=	$0366		; CSW, KSW, BRK, IRQ, RESET -> the traps; power-up byte
 

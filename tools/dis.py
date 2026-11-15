@@ -254,7 +254,15 @@ class Dis:
 
     def mark_data(self, off, d, n):
         m = self.m
-        if d == "db" or d == "text":
+        if d == "text":
+            # a line at a time: an item ends after each $8D (high-bit CR, Merlin-style source lines)
+            start = off
+            for i in range(off, off + n):
+                self.kind[i] = d
+                if m.stream[i] == 0x8D or i == off + n - 1:
+                    self.size[start], self.ikind[start] = i + 1 - start, d
+                    start = i + 1
+        elif d == "db":
             self.size[off], self.ikind[off] = n, d
             for i in range(off, off + n):
                 self.kind[i] = d
@@ -424,10 +432,11 @@ class Dis:
                 n = self.size.get(off, 1)
                 chunk = s[off:off + n]
                 hi = all(b & 0x80 for b in chunk)
-                txt = "".join(chr(b & 0x7F) for b in chunk)
+                cr = chunk[-1:] == b"\x8d"
+                txt = "".join(chr(b & 0x7F) for b in (chunk[:-1] if cr else chunk))
                 if all(32 <= ord(c) < 127 for c in txt) and '"' not in txt:
                     d = ".hstr" if hi else ".str"
-                    out.append(self.line(off, a, chunk[:3], f'{d} "{txt}"'))
+                    out.append(self.line(off, a, chunk[:3], f'{d} "{txt}"' + (",$8D" if cr else "")))
                     off += n
                     continue
                 k = "db"
@@ -599,7 +608,8 @@ class Dis:
             if k == "text":
                 n = min(self.size.get(off, 1), end - off)
                 chunk = s[off:off + n]
-                txt = "".join(chr(b & 0x7F) for b in chunk)
+                cr = chunk[-1:] == b"\x8d"
+                txt = "".join(chr(b & 0x7F) for b in (chunk[:-1] if cr else chunk))
                 if all(32 <= ord(c) < 127 for c in txt) and '"' not in txt \
                         and '\\' not in txt:
                     if not any(b & 0x80 for b in chunk):

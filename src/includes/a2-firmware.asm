@@ -14,7 +14,10 @@ PAGE2OFF	=	$C054
 PAGE2ON		=	$C055
 HIRESON		=	$C057
 DHIRESOFF	=	$C05F		; AN3 on
+BUTN0		=	$C061		; bit 7: open-apple / button 0
+BUTN1		=	$C062		; bit 7: solid-apple / button 1
 
+ROMIN2		=	$C082		; ROM read, LC write disabled
 ; RR: LC bank 2 / bank 1 read, write enabled (read it twice)
 LCBANK2		=	$C083
 LCBANK1		=	$C08B

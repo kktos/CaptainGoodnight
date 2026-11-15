@@ -1,0 +1,52 @@
+# Section 11 (END11), side A T21-T22: $6300-$82FF, loaded by LOAD_SECTION 11 (section 6's end $B8EC, section 9).
+source ../bin/a.T21.bin
+source ../bin/a.T22.bin
+include apple2io.sym
+include game.sym
+$0000 org $6300
+$0000 code
+$0000 label END11
+$0003 db 2
+$0003 label SECTION_MARKS
+$0003 note DISK_MARK ($6303) = SECTION_MARK[11], SIDE_MARK ($6304) = 0 (side A): checked by LOAD_SECTION
+$0005 db 1
+$0006 db 1
+$0007 code
+$0007 label START
+@$6305 label OUTCOME
+@$6305 note $80 at the start: 0 = no name to enter, show the Hall of Fame
+@$6306 label FORMAT
+@$6306 note 1: WRITE_HOF writes even where no D5 FF DD field is found (a new table)
+@$6307 comment section 11's start: the Hall of Fame. Loads it (T20 at $B000); if that fails, writes a new one
+@$6337 comment the screen
+@$6393 comment OUTCOME <> 0: a name to enter (ENTER_NAME), inserted at $B100,Y (INSERT_NAME), written back
+@$63AD comment OUTCOME = 0: shows the table
+@$63C2 label INSERT_NAME
+@$63F5 label ENTER_NAME
+@$6737 comment the end: waits for a key, a button, or a while, then reboots the disk's slot
+@$676E note the slot from SLOT16 (section 1's start): JMP $Cn00
+@$744F label LOAD_HOF
+@$744F comment LOAD_SECTION A = $FF: LOAD_TRACK T20 to $B000-$BFFF (the crack's: the original read it at $7465). C = 1: failed
+@$7465 code
+@$7465 label OLD_READ_HOF
+@$7465 comment the original's reader, dead since the crack: a D5 FF DD field, 4-and-4, to $B000 (SLOT16 in X)
+@$7500 label WRITE_HOF
+@$7500 note the crack's: its writer in T20 ($B500, slot 6)
+@$7503 db 2
+@$7503 note what is left of the original's first instruction (LDA $C089,X?: motor on)
+@$7505 code
+@$7505 label OLD_WRITE_HOF
+@$7505 comment the original's writer, dead since the crack: seeks T20, finds its D5 FF DD field (any, with FORMAT), writes $B100 4-and-4
+@$75C2 code
+@$75C2 label OLD_SEEK
+@$75C2 comment the original's seek: A = half track, $F0 = the head's
+@$75FF label DELAY
+@$75FF comment A: the ROM's WAIT
+@$760B text 3317
+@$760B comment the developers' leftover source text, to the end of T22 (notes/srcfrag_A.txt)
+@$7465 note the crack wrote LOAD_HOF over the reader's start: its BNEs back to $7461 now land in LOAD_HOF
+@$74A5 db 1
+@$74A5 note BIT zp: skips the SEC (C = 0, read)
+@$74A6 code
+@$74A6 label OLD_READ_ERR
+@$7300 comment side A T22 ($7300-$82FF)

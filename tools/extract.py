@@ -223,6 +223,9 @@ def main():
     print("tracks:")
     for (side, t) in sorted(used):
         write(f"{side.lower()}.T{t:02X}.bin", track(side, t))
+    # side A T22 from $760B (section 11, at $7300): the developers' leftover source text, which the source
+    # src/modules/tracks/end11.asm includes from here rather than carry it into git
+    write("a.T22.760B-82FF.bin", track("A", 0x22)[0x30B:], 0x760B)
 
 
 if __name__ == "__main__":
