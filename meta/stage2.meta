@@ -1,0 +1,34 @@
+# stage 2: $0060-$015F, decrypted by boot0 from $0850-$094F (EOR $A5). A chain of RTSes through the
+# stack page. Only $0060-$010F is here: $0110-$015F comes from $0900-$094F, which the PROM didn't load.
+source ../mem/stage2.bin
+include apple2.sym
+$0000 org $0000
+$0000 skip $60
+$0060 code
+$0060 label READ_STAGE3
+$0060 comment in: A = X = 4 (from SET_PROLOGUE). Reads 4 sectors with the PROM's ReadSector
+$0060 note $3E = 4 (left in A2L)
+$0062 note $3A = 4
+$0064 note sector count
+$0068 note BOOT_PAGE: $0400
+$006A comment $0801 = RTS: the PROM's ReadSector ends with JMP $0801, so it now returns here
+$006F comment $7C = $Cn: the JSR below becomes JSR $Cn5C (ReadSector)
+$007A label NEXT_SECTOR
+$007B operand $005C
+$007D note always: ReadSector's CMP $0800 (1 sector) leaves C = 1. What follows is a decoy
+$007F db $2A
+$007F note never run: a 4-and-4 data reader, to mislead
+$00A9 label SECTOR_DONE
+$00AD comment RTS -> next return address in the chain
+$00AE db 6
+$00AE note never run
+$00B4 code
+$00B4 label SET_PROLOGUE
+$00B4 comment $00-$03 = D4 D5 D6 D7 (read by nothing we know of), A = X = 4
+$00C5 db $3B
+$00C5 note junk (the decrypted rest of boot0's sector)
+$0100 comment the chain: each word + 1 is where the next RTS goes
+$0100 rts 4
+$0104 note the loader: $0400 is an RTS, $0401 a JMP $0406
+$0108 dw 4
+$0108 note junk, never popped

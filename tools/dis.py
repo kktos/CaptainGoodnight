@@ -33,7 +33,7 @@ Per offset:
   $off comment TEXT                 block comment line(s) before this offset
   $off note TEXT                    inline comment on this line
   $off skip N                       N bytes not shown (filler)
-  $off operand EXPR                 print the address operand of this instruction as EXPR
+  $off operand EXPR                 print the address operand of this instruction (absolute or zero page) as EXPR
                                     (e.g. TABLE-1); the round-trip check verifies it
 Address forms: any `$off` may be written `@$ADDR` to mean "the offset that
 currently maps to ADDR" (first matching org range).
@@ -401,7 +401,7 @@ class Dis:
                 elif md == "imm":
                     opnd = f"${raw[1]:02X}"
                 elif n == 2:
-                    opnd = self.sym(raw[1], off, zp=True)
+                    opnd = self.operands.get(off) or self.sym(raw[1], off, zp=True)
                 else:
                     opnd = "A" if md == "acc" else ""
                 text = f"{mn} {FMT[md].format(opnd)}" if md not in ("imp", "acc") \
@@ -577,7 +577,7 @@ class Dis:
                 elif md == "imm":
                     opnd = f"${raw[1]:02X}"
                 elif n == 2:
-                    opnd = self.asym(raw[1], off, zp=True)
+                    opnd = self.operands.get(off) or self.asym(raw[1], off, zp=True)
                 if md == "imp":
                     text = mn
                 elif md == "acc":

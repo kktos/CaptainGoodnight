@@ -9,7 +9,7 @@ save ../mem/boot0.bin $0800 $08FF
 # $0060-$015F, SP = $FF, RTS: the stack page holds a chain of return addresses.
 # Only $0850-$08FF was loaded: $0110-$015F comes from whatever $0900-$094F held (unused).
 eor $0850 $0060 $B0 $A5
-save ../mem/stage2.bin $0000 $01FF
+save ../mem/stage2.bin $0000 $010F
 # stage 2: RTS -> $00B4 ($00-$03 = D4 D5 D6 D7, A = X = 4), RTS -> $0060: $0801 = RTS, $7C = $Cn,
 # then 4 x JSR $Cn5C (the PROM's ReadSector, which now returns through $0801): T00 physical 1-4
 # -> $0400-$07FF; RTS -> $0400 (an RTS), RTS -> $0401 (JMP $0406)
@@ -39,10 +39,13 @@ save ../mem/lc2.bin $D000 $DFFF
 save ../mem/lchi.bin $E000 $FFFF
 save ../mem/game.bin $0000 $BFFF
 
-# run-time loads, all through LC bank 2 (to be mapped, see README):
-#   $D000 JMP $D502  load section A from the $DF0B (tracks) / $DF6B (pages) lists, A = $FF: track X+1
-#                    to pages Y..; then side check $6304/$6303 vs $D552/$D55E
-#   $D003 JMP $D654  ?
-#   $D006 JMP $DA6D  ?
-#   $D3A6            load track A+1 to pages Y.. (swaps zero page $00-$1F with $D400-$D41F)
-#   $D00C            RWTS (DOS 3.3-derived); $D0D0 write path?
+# run-time loads, all through LC bank 2 (meta/lc2.meta; to be mapped, see README):
+#   $D000 JMP LOAD_SECTION ($D502)  A = section n: tracks TRACK_LISTS+8n ($DF0B, track - 1, $FF ends) to
+#                    PAGE_LISTS+8n ($DF6B), then the $6300 page loaded must hold $6303 = SECTION_MARK[n]
+#                    ($D55E), $6304 = SECTION_SIDE[n] ($D552), else "PLEASE FLIP / INSERT DISK", again.
+#                    A = $FF: LOAD_TRACK X to pages Y.., no check
+#   $D3A6 LOAD_TRACK  A = track - 1, Y = first page: 16 pages (game zero page $00-$1F swapped with $D400)
+#   $D003 JMP $D654, $D006 JMP $DA6D: not disk code?
+# side B sections 1-6: T01-T05, T06-T0B, T0C-T10, T11-T16, T17-T1C, T1D-T22 -> $6300-$A2FF (+ $B000)
+# side A sections 0 (T0E-T10 -> $0800 / $1800 / $6000), 9 (T1E T1F T10 -> $6300..), 11 (T21 T22 -> $6300..):
+#   to check (section 9 expects mark $11, T1E's $6300 page has $23)

@@ -1,0 +1,37 @@
+# $0300-$03FF: the anti-tamper page, copied from the loader's $063D-$073C. Every way out of the game
+# (output / input hooks, BRK, IRQ, RESET) ends here: it clears memory and reboots.
+source ../mem/page3.bin
+include apple2.sym
+$0000 org $0300
+$0000 code
+$0000 label TRAP_BRK
+$0000 comment BRK / IRQ / CSW / KSW: shows 'P'
+$0002 db 1
+$0002 note BIT abs: skips the next LDA
+$0003 code
+$0003 label TRAP_RESET
+$0003 comment RESET: shows 'R'
+$0005 code
+$0005 label FATAL
+$0005 comment A = the letter shown top left: 'M' no LC RAM, 'L' bad checksum (loader)
+@$031F comment clear $0800-$BFFF, a click per page
+@$032A label WIPE
+@$0337 comment ROM into the LC again, power-up byte made invalid, so the boot slot boots cold
+@$0340 label REBOOT
+@$0340 operand $C600
+@$0340 note $Cn00: the loader patches the boot slot into $0342
+@$0343 code
+@$0343 label ROM_TO_LC
+@$0343 comment copy $F800-$FFFF onto itself: read ROM, write LC bank 2; then LC bank 2 R/W
+@$0363 code
+@$0363 label SET_TRAPS
+@$0363 comment ROM_TO_LC, then:
+@$0366 code
+@$0366 label SET_VECTORS
+@$0366 comment CSW, KSW, BRK ($03F0), IRQ ($FFFE) -> TRAP_BRK; RESET ($03F2, $FFFC) -> TRAP_RESET;
+@$0366 comment power-up byte valid ($03 EOR $A5)
+@$0372 operand $03F0
+@$0375 operand $03F1
+@$0383 operand $03F3
+@$0392 db $6E
+@$0392 note the rest of the copy: READ_TRACK's start, unused here

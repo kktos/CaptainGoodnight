@@ -1,0 +1,116 @@
+# $0400-$07FF: the SAN Inc crack's loader, T00 physical 1-4 (logical 7, E, 6, D), read by stage 2.
+# Reads tracks 1-7 to the LC and $0800-$27FF / $6000-$6FFF, checks them, and starts the game at $6300.
+source ../mem/loader.bin
+include apple2.sym
+sym CUR_PHASE $FF
+sym SUM_XOR $90
+sym SUM_ADD $91
+sym SUM_PTR $92 2
+sym DEST_INDEX $81
+sym PTR $83 2
+sym SECTOR_PAGES $50 16
+sym SECTORS_LEFT $FB
+sym SECTORS_TODO $FA
+sym START_PAGE $41
+sym DATA_PTR $26 2
+sym NIB_TABLE $016A
+sym AUX_BUF $0200
+sym PAGE3 $0300
+sym TRAP_SET $0363
+sym SET_VECTORS $0366
+sym FATAL $0305
+sym GAME_SLOT16 $BFFF
+sym GAME_PHASE $D40E
+sym GAME_ENTRY $6300
+$0000 org $0400
+$0000 code
+$0000 note stage 2's chain: RTS to $0401
+$0001 code
+$0004 db 2
+$0004 label CHECKSUM
+$0004 note expected XOR, sum of the 28 half tracks
+$0006 code
+$0006 label LOADER
+@$0406 note AN3 on (no double hires)
+@$0409 note 40 columns
+@$040C note 80STORE off
+@$040F comment $063D-$073C -> PAGE3, then SET_TRAPS: ROM into LC, vectors to the traps
+@$0411 label COPY_PAGE3
+@$041D comment the game's slot, and REBOOT's $Cn
+@$0428 operand $0342
+@$042B comment LC RAM test on $F000, else FATAL 'M'
+@$042D label LC_TEST
+@$043A label NO_LC
+@$043F comment $4000-$5FFF: AA / D5 stripes on HGR page 2, shown while loading
+@$044B label STRIPES
+@$0463 comment from phase 0: seek track 1, then a track per DEST_TABLE pair
+@$0470 label NEXT_DEST
+@$047F label LOADED
+@$047F comment back to an even phase, motor off, check
+@$048C code
+@$048C label UNUSED_READ4
+@$048C comment unused: 4 sectors of 2 pages, 4-and-4 encoded, with custom marks ($0631-$063C).
+@$048C comment Probably what is left of the original's loader.
+@$04AB code
+@$04AB label SET_DEST
+@$04AB comment Y = index in DEST_TABLE: LC bank 2 R/W, or bank 1 if bit 0. A = page (bit 0 off), Z: end
+@$04C3 label DEST_TABLE
+@$04C3 db 15
+@$04C3 comment 8-page halves of the tracks read; bit 0: LC bank 1. Odd entries: READ_TRACK returns at once
+@$04D2 code
+@$04D2 label UNUSED_READ_SECTOR
+@$0544 code
+@$0544 label SEEK
+@$0544 comment A = phase to go to (DOS 3.3's SEEKABS, its ONTABLE / OFFTABLE); X = slot*16 on return
+@$0546 db 1
+@$0546 note BIT abs: skips the LDX
+@$0547 code
+@$0547 label SEEK_FAST
+@$0549 operand DELAY+1
+@$05AA code
+@$05AA label DELAY
+@$05AA note the delay unit (patched by SEEK)
+@$05B5 label ONTABLE
+@$05B5 db 12
+@$05C1 label OFFTABLE
+@$05C1 db 12
+@$05CD label SEEK_TARGET
+@$05CD db 1
+@$05CE label SEEK_COUNT
+@$05CE db 1
+@$05CF label SEEK_FROM
+@$05CF db 1
+@$05D0 text 19
+@$05D0 note the cracker's tag
+@$05E3 code
+@$05E3 label CHECK
+@$05E3 comment XOR / sum of every half track in DEST_TABLE, against CHECKSUM, else FATAL 'L'
+@$062A note the game's head position
+@$0630 db 1
+@$0630 label UNUSED_EPILOGUE
+@$0631 db 4
+@$0631 label UNUSED_SEEK_STEPS
+@$0635 db 8
+@$0635 label UNUSED_PROLOGUES
+@$063D db $92
+@$063D label PAGE3_SRC
+@$063D comment PAGE3_SRC ($063D-$073C) -> $0300: see page3.meta
+@$06CF code
+@$06CF label READ_TRACK
+@$06CF comment A = first page, Y = DEST_TABLE index (odd: nothing to do). Reads the track at SEEK_TARGET,
+@$06CF comment logical sector s -> page A+s, any order, then SEEK_TARGET += 2 (next track)
+@$06D3 note odd index: to an RTS ($06CE, in PAGE3_SRC)
+@$06D5 note becomes LDY #$00 after the first call (BEQ taken: set-up done)
+@$06D9 comment first call: patch the slot in, build the denibble table at NIB_TABLE ($01EA+$80)
+@$0711 label READ_SETUP
+@$071F label SECTOR_MAP
+@$072D label FIND_FIELD
+@$0767 label DATA_FIELD
+@$076B note never taken (Z = 0): its operand, $18, is a CLC, where the BCS below enters
+@$077F note second pass: CLC, the 256 bytes to (DATA_PTR) only
+@$0775 note first pass (C = 1): the 86 low-bit nibbles to AUX_BUF too
+@$078F label DENIB
+@$07AE label LOGICAL_TO_PHYSICAL
+@$07AE db 16
+@$07AE comment the DOS 3.3 interleave: logical s is physical [s]
+@$07BE db $42

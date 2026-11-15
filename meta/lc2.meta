@@ -1,0 +1,140 @@
+# LC bank 2 $D000-$DFFF (side A T04, loaded at boot). Here: its disk layer, $D000-$D653.
+# A read-only RWTS in the ProDOS style (16-sector, 6-and-2, reads a data field in place), a track loader,
+# and the section loader with its "wrong disk" prompts. The rest of the bank is game code (not yet read).
+source ../mem/lc2.bin
+include apple2.sym
+sym SLOT16 $00
+sym CKSUM $01
+sym ADDR_CHK $02
+sym ADDR_SECTOR $03
+sym ADDR_TRACK $04
+sym ADDR_VOLUME $05
+sym BUF $06 2
+sym TRIES $08
+sym PAGE_LIST $09 2
+sym TEMP $0B
+sym TEMP2 $0C
+sym TRACK $0D
+sym CUR_PHASE $0E
+sym ZP_SAVE $D400 32
+sym PAGE_LIST_BUF $D470 16
+sym PHYS_PAGES $D480 16
+sym AUX_NIBS $D4AA 86
+sym SIDE_MARK $6304
+sym DISK_MARK $6303
+sym GAME_SLOT16 $BFFF
+sym DRAW_TEXT $1A6A
+sym WAIT_FRAME $6225
+sym LINE_LO $19AA
+sym LINE_HI $18EA
+$0000 org $D000
+$0000 code
+$0000 label LOAD_SECTION_V
+$0003 code
+$0003 label ENTRY_D003_V
+$0006 code
+$0006 label ENTRY_D006_V
+$0009 label DISK_SLOT16
+$0009 db 1
+$0009 note slot*16, from GAME_SLOT16 at the first LOAD_SECTION
+$000A code
+$000A label ERR_RTS
+@$D00C code
+@$D00C label READ_DATA
+@$D00C comment X = slot*16, BUF = destination page: reads the data field after the address field just read.
+@$D00C comment C = 1: no data field / bad checksum
+@$D020 comment the destination is patched into the stores, $54 / $AC before it so Y can count $AA..$FF
+@$D042 label FIND_DATA
+@$D04C note D5 AA AD (a bad second or third nibble: compare it with D5 again)
+@$D064 comment the 86 aux nibbles -> AUX_NIBS, then 3 passes of 86 merging them with the 256 into BUF
+@$D0CD comment the checksum must be 0, then DE: CLC
+@$D0D9 note to $D0DD, BIT's operand: CLC
+@$D0DC note skips the CLC: C = 1 from $D0DB
+@$D0E4 code
+@$D0E4 label SEEK
+@$D0E4 comment A = track: phases from CUR_PHASE to 2*A, 40 ms each (DELAY $28)
+@$D100 label DENIB
+@$D100 comment its code doubles as the denibble table's start: DENIB,X for nibble X ($96-$FF)
+@$D10E code
+@$D10E label PHASE_ON
+@$D11A code
+@$D11A label PHASE_WAIT
+@$D11F code
+@$D11F label ERR_RTS2
+@$D121 code
+@$D121 label READ_ADDRESS
+@$D121 comment the next address field: D5 AA 96, volume / track / sector / checksum (4-and-4), DE AA. C = 1: none
+@$D17D db $83
+@$D17D note denibble table (indexed from DENIB) and the 6-and-2 merge table ($D200 + 4 * 2 bits)
+@$D300 code
+@$D300 label READ_TRACK
+@$D300 comment TRACK, PAGE_LIST (16 pages by logical sector, 0: skip): reads them in any order, 255 address
+@$D300 comment fields at most. C = 1: failed
+@$D305 comment pages by physical sector, from the logical ones (PHYSICAL_TO_LOGICAL)
+@$D318 label NEXT_FIELD
+@$D31A note to $D34C, BIT's operand: SEC / RTS
+@$D34B note skips the SEC
+@$D34E label WRONG_TRACK
+@$D34E comment seek again from the track the address field gave
+@$D35B label PHYSICAL_TO_LOGICAL
+@$D35B db 16
+@$D36B code
+@$D36B label READ_TRACK_AT
+@$D36B comment A = first page: the 16 pages A.., then READ_TRACK. Failed: SIDE_MARK = $FF (wrong disk, ask)
+@$D37A note the first page
+@$D38C db $1A
+@$D38C note unused: READ_TRACK_AT with the page list inline after the JSR
+@$D3A6 code
+@$D3A6 label LOAD_TRACK
+@$D3A6 comment A = track - 1, Y = first page: one track, 16 pages, with the game's zero page swapped out
+@$D3C6 code
+@$D3C6 label SWAP_ZP
+@$D3C6 comment $00-$1F <-> ZP_SAVE (the disk layer's own zero page, CUR_PHASE in $D40E)
+@$D3D8 code
+@$D3D8 label DELAY
+@$D3E4 db $11E
+@$D3E4 comment ZP_SAVE / PAGE_LIST_BUF / PHYS_PAGES / AUX_NIBS: work areas
+@$D500 label SECTION_INDEX
+@$D500 db 1
+@$D501 label SECTION
+@$D501 db 1
+@$D502 code
+@$D502 label LOAD_SECTION
+@$D502 comment A = section: loads its tracks (TRACK_LISTS / PAGE_LISTS, by 8), then checks the $6300 page
+@$D502 comment loaded: SIDE_MARK = SECTION_SIDE, DISK_MARK = SECTION_MARK, else asks and loads again.
+@$D502 comment A = $FF: LOAD_TRACK X (track - 1) to pages Y.. (no check)
+@$D518 label LOAD_SECTION_N
+@$D522 label NEXT_TRACK
+@$D546 label LOAD_ONE
+@$D552 label SECTION_SIDE
+@$D552 db 12
+@$D552 note 0: side A, 1: side B
+@$D55E label SECTION_MARK
+@$D55E db 12
+@$D56A code
+@$D56A label ASK_FLIP
+@$D56A comment wrong side: "PLEASE FLIP DISK AND PRESS A KEY." until a key or a button, then load again
+@$D5A7 code
+@$D5A7 label ASK_INSERT
+@$D5A7 comment wrong disk: "PLEASE INSERT DISK AND PSESS A KEY" (sic)
+@$D5E4 label MSG_FLIP
+@$D5E4 db $23
+@$D5E4 note game characters: A = $00 ... Z = $19, $27 space, $24 '.', $FF end
+@$D607 label MSG_INSERT
+@$D607 db $25
+@$D62C code
+@$D62C label FILL_MSG_ROWS
+@$D62C comment A -> rows 0-6 of both hires pages (clears or sets the message band)
+@$D62B label FILL_BYTE
+@$D654 code
+@$D654 label ENTRY_D003
+@$DA6D code
+@$DA6D label ENTRY_D006
+@$DF0B label TRACK_LISTS
+@$DF0B db $60
+@$DF0B comment section n: tracks - 1 at TRACK_LISTS + 8n, $FF ends; pages at PAGE_LISTS + 8n
+@$DF6B label PAGE_LISTS
+@$DF6B db $5A
+@$DFC5 code
+@$DFC5 comment code, over section 11's unused page list bytes
+@$D34B operand $38

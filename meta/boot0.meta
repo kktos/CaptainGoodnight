@@ -1,0 +1,17 @@
+# side A T00 S0 - boot sector, loaded by the Disk II P5 PROM at $0800
+source ../mem/boot0.bin
+include apple2.sym
+$0000 org $0800
+$0000 db 1 ; number of sectors the PROM reads (1); stage 2 patches $0801 to an RTS
+$0001 code
+$0001 label BOOT0
+$0001 comment clear $2000-$5FFF (both hires pages)
+@$0816 comment HGR page 1, full screen
+@$0822 note $08 = boot slot*16 (stage 2 reads it)
+@$0828 comment $0850-$094F EOR $A5 -> $0060-$015F (stage 2, zero page + stack page). NOPs: padding
+@$082C label DECRYPT
+@$083F comment SP = $FF: the RTS pops $0100/$0101, the first of stage 2's chain of return addresses
+@$0848 db 8
+@$0848 note filler
+@$0850 label STAGE2_CRYPT
+@$0850 db $B0

@@ -39,7 +39,8 @@ output:
     object:
         path: {name}.bin
     listing:
-        enabled: true
+        path: {name}.lst
+        pass2: true
     symbols:
         enabled: true
 """)
