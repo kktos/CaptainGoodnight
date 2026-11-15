@@ -8,7 +8,10 @@
 		.incbin	"../../../bin/game.0800-27FF.bin"
 
 		.segment	GAME_HI
-		.incbin	"../../../bin/game.6000-6FFF.bin"
+		.incbin	"../../../bin/game.6000-62FF.bin"
+		.namespace	intro
+		.include	"intro.asm"
+		.end namespace
 
 		.MODULE	LC
 

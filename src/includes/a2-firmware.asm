@@ -6,6 +6,7 @@ KBDSTRB		=	$C010
 SETSTDZP	=	$C008		; write: main zero page, stack and language card
 SETALTZP	=	$C009		; write: aux zero page, stack and language card
 CLR80VID	=	$C00C		; write: 40 columns
+SPKR		=	$C030
 
 TEXTOFF		=	$C050
 TEXTON		=	$C051
