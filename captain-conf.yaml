@@ -1,0 +1,25 @@
+input:
+  cpu: 65C02
+  source: src/main.asm
+  options:
+    listing.case: source
+    listing.data: fold
+  symbols:
+    DISK_KB: 800
+
+output:
+  linker:
+    script: link/captain.linker.asm
+
+  listing:
+    path: dist/captain.lst
+    pass2: true
+    linker: true
+
+  symbols:
+    enabled: true
+    path: dist/captain.sym
+
+  segments:
+    enabled: true
+    path: dist/captain.seg

@@ -1,8 +1,9 @@
 # captain-goodnight
 
-Captain Goodnight and the Islands of Fear (Broderbund, 1985), rehosted: on a ProDOS `.po` booted by tiny-dos (from
-[conan](../conan)) from a SmartPort / block device, instead of the original's own track reader driving a Disk II in
-slot 6. Work in progress.
+Captain Goodnight and the Islands of Fear (Broderbund, 1985), rehosted: both sides of the disk on one 800K ProDOS
+`.po`, booted by tiny-dos (from [conan](../conan)) from a SmartPort / block device in any slot, instead of the
+original's own track readers driving a Disk II in slot 6. No disk to flip. Needs a 128K Apple //e (or //c, IIgs):
+tiny-dos lives in the aux language card.
 
 The game is the SAN Inc crack's code and data, untouched: only its disk code is replaced.
 
@@ -15,8 +16,11 @@ curl -o assets/CAPTAIN_GOODNIGHT_B.dsk "$B/captain%20goodnight%20b%20%28san%20in
 # optional, to compare: the ACE crack
 curl --create-dirs -o assets/ace/ACE_A.dsk "$B/Captain%20Goodnight%20%28Cracked%20by%20ACE%20with%20codes%29%20-%20Side%20A.DSK"
 curl --create-dirs -o assets/ace/ACE_B.dsk "$B/Captain%20Goodnight%20%28Cracked%20by%20ACE%20with%20codes%29%20-%20Side%20B.DSK"
-./build.sh                      # -> mem/ snapshots, out/ listings, notes/, bin/ (tools/extract.py)
+./build.sh                      # -> mem/ snapshots, out/ listings, notes/, bin/ (tools/extract.py),
+                                #    dist/captain.po (checked by tools/check.py), out/loadtest/
 ```
+
+The build alone: `python3 tools/extract.py && tsasm captain-conf.yaml && python3 tools/check.py`.
 
 ## How the original boots (side A)
 
@@ -78,13 +82,52 @@ The ACE crack (also on asimov) has the same section tables. It packs side A T00-
 section 11's `LOAD_TRACK T20`, whose sectors S0, S5, S6 and SF the SAN crack fills: probably the original's
 protection check at the end of the game.
 
+## The .po
+
+| File      | Load                                                    | Blocks           |
+| --------- | ------------------------------------------------------- | ---------------- |
+| `CAPTAIN` | `$7000`: `Init`, what the SAN loader did; then `AUX_LOADER` | 2 + 1        |
+| `GAME`    | `$0300` (the traps), `$0800-$27FF`, `$6000-$6FFF`       | 1 + 16 + 8       |
+| `LC`      | at `$8000-$BFFF`, copied to LC bank 1 `$D000`, bank 2 `$D000`, `$E000-$FFFF` | 32 |
+| `INTRO`   | side A T11-T1D, a track at a time                       | 13 x 8           |
+| `PART1`-`PART6` | sections 1-6: side B T01-T05, T06-T0B, T0C-T10, T11-T16, T17-T1C, T1D-T22 | 5-6 x 8 |
+| `END9`    | section 9: side A T1E, T1F, T10                          | 3 x 8            |
+| `END11`   | section 11: side A T21, T22                              | 2 x 8            |
+| `T20`     | section 11's `LOAD_TRACK`: side A T20                    | 8                |
+
+Each segment of a file starts on a block, so a track is 8 blocks at 8 x its index in its file
+([src/segments.asm](src/segments.asm), where each track's segment is at the address it loads to).
+
+- Boot: the bootloader (blocks 0-1) moves tiny-dos into the **aux** language card, bank 2 (`$D000`, its buffer at
+  `$DE00`), and loads `CAPTAIN` with it. tiny-dos runs with ALTZP on: its code, buffer, zero page and stack are aux
+  memory, which the game never uses; what it loads lands in main memory (`$0200-$BFFF` stays main). Main code calls
+  it with `STA SETALTZP` / `JSR` / `STA SETSTDZP` from main RAM.
+- `Init` ([src/modules/captain/init.asm](src/modules/captain/init.asm)): boot0's and the loader's screen (cleared
+  hires pages, `AA`/`D5` stripes on page 2), loads `GAME` and `LC` (`LC` goes through `$8000`: from the aux
+  language card, tiny-dos can't write the main one), copies `AUX_LOADER` to the aux language card, sets `$BFFF`,
+  `REBOOT`'s slot and the trap vectors as the loader did, and jumps to `$6300`.
+- `LOAD_TRACK` (`$D3A6`, [src/modules/game/loadtrack.asm](src/modules/game/loadtrack.asm)): takes the side of the
+  last section asked for, `SECTION_SIDE[SECTION]`, the disk the original would have in the drive, then switches to
+  the aux language card with `STA SETALTZP` at `AUX_SWITCH` (`$D3B0`). The next instruction is the aux one at
+  `$D3B3`: `AuxLoadTrack` ([src/modules/captain/auxloader.asm](src/modules/captain/auxloader.asm)) finds the
+  track's file and index in `TrackMap`, loads its 8 blocks with tiny-dos's `LoadFromFileAt`, and comes back through
+  the aux `STA SETSTDZP` at `$D3B0`, to main's `$D3B3`: `PLP`, `RTS`. `LOAD_SECTION`, its checks and its prompts are
+  untouched. `$D00C-$D3A5` (the RWTS, `READ_TRACK`, `READ_TRACK_AT`) is free.
+- Checked: [tools/check.py](tools/check.py) reads the built `.po` as tiny-dos does and finds every track as
+  `AuxLoadTrack` does, from the built `TrackMap`; [tools/loadtest.py](tools/loadtest.py) and
+  [test/loadtest.asm](test/loadtest.asm) call every load in vm6502 (sections 1-6, 9, 11, the 13 intro tracks, T20,
+  the endings' T22) and compare their checksums: all as extracted. It boots to the intro, and a key starts
+  section 1.
+- Not reproduced: the loader's head position in `$D40E` (nothing reads it now), its zero page and stack; the ROM
+  copied to the language card (`ROM_TO_LC`), which T02-T03 overwrite anyway; `Init` and `AUX_LOADER`'s copy stay at
+  `$7000-$75FF` until the intro's first track. tiny-dos's `dbgAddMemRegion` hypercall isn't called: from the aux
+  language card vm6502 stops on its `BRK` (vm6502 `TODO.md`, 2026-11-15).
+- The intro still says "TURN DISK OVER AND PRESS ANY KEY." before section 1 (`$6984`): the game's own prompt.
+
 ## Open questions
 
 - Sections 8 and 10 load nothing, so `LOAD_SECTION` checks the marks of the `$6300` page that is already there,
-  section 6's (side B): it would ask to flip the disk forever. When does section 6 end with `$80` = 1, or `$80` = 4
-  and `$81` = 0? To test on the rehosted build.
+  section 6's (side B): it asks to flip the disk forever (checked in vm6502: section 6, then 8). The game's code, not
+  the crack's or the rehost's. When does section 6 end with `$80` = 1, or `$80` = 4 and `$81` = 0?
 - `$D003` (`$D654`) and `$D006` (`$DA6D`, A = 0): what they draw.
-- Free memory for tiny-dos in bank 2, once the disk layer is replaced: `$D00C-$D3D7` and `$D3E4-$D62B` (the work
-  areas `$D400-$D4FF` included), minus what `SWAP_ZP` keeps at `$D400-$D41F` if it stays. `DELAY` (`$D3D8`) and
-  `FILL_MSG_ROWS` (`$D62C`) are still called by the rest of bank 2. Which bank is in at each call from the main code
-  is to confirm in the emulator.
+- Played only to section 1's start: the rest is checked by the load test, not by playing.

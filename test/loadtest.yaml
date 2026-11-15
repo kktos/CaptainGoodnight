@@ -1,0 +1,9 @@
+input:
+  cpu: 65C02
+  source: loadtest.asm
+output:
+  object:
+    path: ../out/loadtest/loadtest.bin
+  listing:
+    path: ../out/loadtest/loadtest.lst
+    pass2: true

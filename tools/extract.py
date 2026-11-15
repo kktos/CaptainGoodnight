@@ -102,6 +102,9 @@ def main():
     write("game.6000-6FFF.bin", pages(main_mem, 0x60, 0x6F), 0x6000)
     write("lc1.D000-DFFF.bin", pages(lc1, 0xD0, 0xDF), 0xD000)
     write("lc2.D000-DFFF.bin", pages(lc2, 0xD0, 0xDF), 0xD000)
+    # split around $D00C-$D3C5, the disk layer the build replaces: the RWTS, READ_TRACK, READ_TRACK_AT, LOAD_TRACK
+    write("lc2.D000-D00B.bin", pages(lc2, 0xD0, 0xDF)[:0x00C], 0xD000)
+    write("lc2.D3C6-DFFF.bin", pages(lc2, 0xD0, 0xDF)[0x3C6:], 0xD3C6)
     write("lchi.E000-FFFF.bin", pages(lchi, 0xE0, 0xFF), 0xE000)
 
     bank2 = pages(lc2, 0xD0, 0xDF)
